@@ -257,12 +257,17 @@
   // the reasoning was written before the stream showed any, OpenAI's
   // encrypted and its summary sent when done, and counting it read
   // gpt-6.1-sol at 163 tok/s. The reply's reasoning is its served try's.
-  // The window is no longer than its content took to come (flow): a reply
-  // held back and sent in one burst tells no speed (John on Discord).
+  // A reply held back and let go in a burst at its end tells no speed
+  // (usage.DecodeOf, John on Discord: Kimi Code at 2,237 tok/s): its
+  // content came in under a quarter of its window (flow), or its answer
+  // at over 20 times the pace its reasoning came before its first text.
   function decodeOf(r, ms, ttft, firstText, flow = r.flow) {
     const think = reasoningOf(r), n = think > 0 ? r.out - think : r.out, from = think > 0 ? firstText : ttft;
-    const w = flow > 0 ? Math.min(ms - from, flow) : ms - from;
-    return n > 0 && ttft > 0 && from > 0 && w >= 100 && n * 1000 <= 10000 * w ? { n, w } : null;
+    const w = ms - from;
+    if (!(n > 0 && ttft > 0 && from > 0 && w >= 100 && n * 1000 <= 10000 * w)) return null;
+    if (flow > 0 && flow * 4 < w) return null;
+    if (think > 0 && n * (firstText - ttft) > 20 * think * w) return null;
+    return { n, w };
   }
   const reasoningOf = (r) => r.reasoning ?? (r.usage?.length ? r.usage[r.usage.length - 1].reasoning || 0 : 0);
   const speedOf = (r, ms = r.ms, ttft = r.ttft, firstText = r.firstText, flow = r.flow) => {
@@ -1418,10 +1423,18 @@
   }
   // renderCtx draws the request's context window under its story, with
   // its session's prompts request by request; drawn again only when what
-  // it shows changes, and its cells come in only for a request newly shown
+  // it shows changes. Live, the next request is patched into the card
+  // that is there, so only what changed changes and nothing under it moves
+  // (Zhenzhen on Discord: each new request flashed the whole card, and its
+  // grid went and came back); a request the reader picks comes in afresh,
+  // its cells one after another
   let ctxKey = "", ctxShown = 0, ctxTab = "all";
   function renderCtx(r) {
     if (!r.prompt || !window.ctxCard) {
+      // a live request whose prompt the gateway is still reading keeps
+      // the card in its place until it has it, rather than the card
+      // going and coming back a moment later
+      if (!r.prompt && !r.done && !pinned && ctxBox.firstElementChild?.ctxUpdate) return;
       if (ctxKey) { ctxKey = ""; ctxBox.replaceChildren(); }
       return;
     }
@@ -1436,7 +1449,9 @@
     const still = ctxShown === r.id;
     ctxShown = r.id;
     const sess = groupSession(r) || r.conv || "";
-    ctxBox.replaceChildren(window.ctxCard(r, {
+    const card = ctxBox.firstElementChild;
+    const draw = card?.ctxUpdate && (still || !pinned) ? card.ctxUpdate : (r, o) => ctxBox.replaceChildren(window.ctxCard(r, o));
+    draw(r, {
       still, series, tab: ctxTab, place: "routing",
       onTab: (id) => { ctxTab = id; },
       crumbs: [agentName(r.agent), sess && (sess.length > 14 ? sess.slice(0, 12) + "…" : sess), "#" + r.id],
@@ -1444,7 +1459,7 @@
         const x = routes.get(pt.id) || listed().find((y) => y.id === pt.id);
         if (x) pick(x);
       },
-    }));
+    });
   }
   // logoed puts the provider's logo before the first account, key or
   // provider a line of the story names, so who it is about reads at a
