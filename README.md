@@ -38,25 +38,25 @@ The official desktop app must be installed and configured per computer. A NAS, h
 ## 改动清单（vs 上游官方镜像）/ Changes vs upstream
 
 1. **权限**：compose 使用 `user: "0"`（容器内以 root 运行保证 /config 可写）；
-2. **局域网访问**：Web UI 3430 与网关 3425 均开放 `0.0.0.0`，供局域网 Agent 直连；Web UI 有密钥保护；
-3. **访问密钥随机化（v0.1.1121-10 起）**：不再内置固定默认密钥。安装时自动生成每台设备唯一的随机密钥（主机信息 + 时间 + 随机熵 → 16 位 hex），持久化保存于 NAS 数据目录（`/var/apps/magpie/shares/magpie/data/web_key`）；应用中心点图标直达（浏览器地址栏可见 `?k=` 密钥），容器日志也会显著打印。升级 / 重装不改变已保存的密钥；
+2. **局域网访问 + 默认免密钥（v0.1.1121-12 起）**：Web UI 3430 与网关 3425 均开放 `0.0.0.0`，供局域网 Agent 直连；**默认不注入 MAGPIE_WEB_KEY，Web 界面打开直接进入**（个人/家庭 NAS 场景无需密钥门槛；如需公网保护可在 compose 的 environment 手动设置 MAGPIE_WEB_KEY ≥16 位字母数字后重启）；
+3. ~~访问密钥随机化（v0.1.1121-10/11）~~：早期版本曾内置随机密钥机制（每台唯一、持久化、直达 URL 带 `?k=`）；v12 起改为**默认免密钥直进**，历史数据目录中的 web_key 文件不再被读取（保留供回退旧版使用）；
 4. **云隧道（Cloud tunnel）**：镜像内置 cloudflared，Web UI「Settings → Network and sharing → Cloud tunnel」一键开启：快速隧道（临时 `*.trycloudflare.com` 公网 URL）或固定隧道（自有域名 + CF Token），可暴露网关（3425）或 Web UI（3430）；
 5. **镜像源**：默认 `ghcr.nju.edu.cn/mybladethirsts/magpie-fn`（国内拉取快），可改回 `ghcr.io`；
-6. **修复反复重启 / 覆盖安装**：compose 不依赖安装回调占位符，容器启动自带密钥兜底逻辑；升级回调清理旧版残留，覆盖安装必须使用更高版本号；
+6. **修复反复重启 / 覆盖安装**：compose 不依赖安装回调占位符，容器直接启动；升级回调清理旧版密钥脚本残留；覆盖安装必须使用更高版本号；
 7. **版本规则**：`0.1.1121-N`，N 为封装版本号（递增；覆盖安装必须使用更高的版本号）。
 
 ## 文件 / Files
 
 | 文件 / File | 架构 / Arch | 说明 / Notes |
 |---|---|---|
-| magpie-0.1.1121-11-x86.fpk.b64 | x86_64 | 安装包 base64 文本，解码后为 .fpk |
-| magpie-0.1.1121-11-arm.fpk.b64 | ARM64 | 同上（按飞牛规范打包，未在真机验证，ARM 用户请先在测试环境安装） |
+| magpie-0.1.1121-12-x86.fpk.b64 | x86_64 | 安装包 base64 文本，解码后为 .fpk |
+| magpie-0.1.1121-12-arm.fpk.b64 | ARM64 | 同上（按飞牛规范打包，未在真机验证，ARM 用户请先在测试环境安装） |
 
 ## 安装 / Install
 
-1. 还原 .fpk：`certutil -decode magpie-0.1.1121-11-x86.fpk.b64 magpie-0.1.1121-11-x86.fpk`（Windows）或 `base64 -d <file>.b64 > <file>.fpk`（Linux/macOS）；
+1. 还原 .fpk：`certutil -decode magpie-0.1.1121-12-x86.fpk.b64 magpie-0.1.1121-12-x86.fpk`（Windows）或 `base64 -d <file>.b64 > <file>.fpk`（Linux/macOS）；
 2. 飞牛应用中心 → 手动安装 → 选择 .fpk；
-3. 安装向导可手动设置访问密钥（≥16 位字母数字）；**留空则自动生成随机密钥**，安装完成后应用中心点 magpie 图标即可直达，密钥见浏览器地址栏 `?k=` 与容器日志。
+3. 安装完成后应用中心点 magpie 图标，或局域网打开 `http://<NAS-IP>:3430`，**直接进入 Web 界面**（默认免密钥）。
 
 ## 使用 / Usage
 
@@ -69,9 +69,9 @@ The official desktop app must be installed and configured per computer. A NAS, h
 
 ## 访问 / Access
 
-- Web UI：应用中心点图标直达（带随机密钥 `?k=`）；局域网 `http://<NAS-IP>:3430`（按提示输入密钥）
-- 网关：`http://<NAS-IP>:3425`
-- 访问密钥：**安装时自动随机生成，每台 NAS 唯一**；持久保存于数据目录 `web_key` 文件，应用中心直达 URL 与容器日志均可见。忘记可查看应用日志，或删除数据目录 web_key 后重启（会重新生成，旧密钥失效）。
+- Web UI：应用中心点图标直达，或局域网 `http://<NAS-IP>:3430` —— **打开直接进入，无需密钥**（默认不设置 MAGPIE_WEB_KEY）
+- 网关：`http://<NAS-IP>:3425`（gateway 模式官方默认接受任意 key，仅建议可信局域网使用）
+- 可选保护：如需给 Web 界面加访问密钥，编辑应用的 compose，在 environment 中加入 `MAGPIE_WEB_KEY: "你的密钥"`（至少 16 位字母数字）并重启应用
 
 ## 公网隧道（可选）/ Public tunnels (optional)
 
@@ -79,7 +79,7 @@ The official desktop app must be installed and configured per computer. A NAS, h
   - Quick tunnel（快速）：一键开启，生成临时 `*.trycloudflare.com` 公网 URL，进程运行期间有效，重启后 URL 变化；
   - Named tunnel（固定）：填 Cloudflare 账号 Token + 自有域名，URL 持久；
   - 可暴露网关（3425）或 Web UI（3430）。
-- 提醒：网关含订阅凭据，暴露公网前请先开启 Web UI 的 Share 并设置 gateway key 认证。
+- 提醒：Web 界面默认免密钥，网关含订阅凭据——**暴露公网前**请先在 compose 设置 MAGPIE_WEB_KEY 并开启 Web UI 的 Share 设置 gateway key 认证。
 
 ## 许可 / License
 
