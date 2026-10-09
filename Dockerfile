@@ -24,6 +24,11 @@ RUN mkdir -p /out/bin /out/lib \
 
 FROM busybox:1.37-uclibc AS busybox
 
+# cloudflared drives the Cloud tunnel (magpie-fn): a quick tunnel to a
+# temporary trycloudflare.com URL, or a named tunnel created in the
+# Cloudflare dashboard, for machines outside the LAN.
+FROM cloudflare/cloudflared:latest AS cloudflared
+
 # cc, not static: plugins run on Bun, which magpie downloads on first use
 # and which needs glibc (static has no libc at all, and Bun's musl build
 # would need musl). cc is static plus glibc, libgcc and libstdc++.
@@ -37,6 +42,7 @@ COPY --from=shell /out/lib/ /usr/lib/
 # in that terminal
 USER root
 RUN ["/bin/busybox", "sh", "-c", "/bin/busybox --install -s /bin && mkdir -p /usr/local/bin && ln -s /magpie /usr/local/bin/magpie"]
+COPY --from=cloudflared /usr/local/bin/cloudflared /usr/local/bin/cloudflared
 USER nonroot
 COPY --from=build --chown=65532:65532 /config /config
 
