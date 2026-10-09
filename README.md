@@ -42,12 +42,12 @@ The image defaults to the Nanjing University ghcr mirror (ghcr.nju.edu.cn/yetone
 
 | 文件 / File | 架构 / Arch | 说明 / Notes |
 |---|---|---|
-| fpk/magpie-0.1.1121-8.fpk.b64 | x86_64 | 安装包 base64 文本，解码后为 .fpk |
+| fpk/magpie-0.1.1121-8-x86.fpk.b64 | x86_64 | 安装包 base64 文本，解码后为 .fpk |
 | fpk/magpie-0.1.1121-8-arm.fpk.b64 | ARM64 | 同上（按飞牛规范打包，未在真机验证，ARM 用户请先在测试环境安装） |
 
 ## 安装 / Install
 
-1. 还原 .fpk：`certutil -decode magpie-0.1.1121-8.fpk.b64 magpie-0.1.1121-8.fpk`（Windows）或 `base64 -d magpie-0.1.1121-8.fpk.b64 > magpie-0.1.1121-8.fpk`（Linux/macOS）；
+1. 还原 .fpk：`certutil -decode magpie-0.1.1121-8-x86.fpk.b64 magpie-0.1.1121-8-x86.fpk`（Windows）或 `base64 -d magpie-0.1.1121-8-x86.fpk.b64 > magpie-0.1.1121-8-x86.fpk`（Linux/macOS）；
 2. 飞牛应用中心 → 手动安装 → 选择 .fpk；
 3. 安装向导可设置 Web UI 访问密钥（至少 16 位，留空用默认密钥）。
 
