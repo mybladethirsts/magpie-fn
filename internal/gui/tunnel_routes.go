@@ -60,8 +60,7 @@ type tunnelConfigIn struct {
 }
 
 func tunnelView() map[string]any {
-	cfg, err := tunnel.LoadConfig()
-	if err != nil {
+	if _, err := tunnel.LoadConfig(); err != nil {
 		return map[string]any{"state": tunnel.Status(), "config": map[string]any{}, "configError": err.Error()}
 	}
 	return map[string]any{"state": tunnel.Status(), "config": tunnelConfigView()}
