@@ -1,0 +1,9 @@
+/* Cloud tunnel block on Settings → Network and sharing (magpie-fn) */
+#tunnelList .tunnel-status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+#tunnelList .tunnel-status i { width: 8px; height: 8px; border-radius: 50%; background: #999; }
+#tunnelList .tunnel-status.on i { background: #3b9e46; }
+#tunnelList .tunnel-url { display: flex; align-items: center; gap: 8px; min-width: 0; }
+#tunnelList .tunnel-url a { color: #2f6fdd; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tunnelList input[type="password"] { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid #ccc; background: #fff; color: inherit; width: 100%; box-sizing: border-box; }
+#tunnelList .tunnel-note { margin: 8px 0 0; font-size: 12px; opacity: .8; }
+#tunnelList .tunnel-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
