@@ -39,7 +39,7 @@ The official desktop app must be installed and configured per computer. A NAS, h
 
 1. **权限**：compose 使用 `user: "0"`（容器内以 root 运行保证 /config 可写）；
 2. **局域网访问**：Web UI 3430 与网关 3425 均开放 `0.0.0.0`，供局域网 Agent 直连；Web UI 有密钥保护；
-3. **访问密钥随机化（v0.1.1121-10 起）**：不再内置固定默认密钥。安装时自动生成每台设备唯一的随机密钥（主机信息 + 时间 + 随机熵 → 32 位 hex），持久化保存于 NAS 数据目录（`/var/apps/magpie/shares/magpie/data/web_key`）；应用中心点图标直达（浏览器地址栏可见 `?k=` 密钥），容器日志也会显著打印。升级 / 重装不改变已保存的密钥；
+3. **访问密钥随机化（v0.1.1121-10 起）**：不再内置固定默认密钥。安装时自动生成每台设备唯一的随机密钥（主机信息 + 时间 + 随机熵 → 16 位 hex），持久化保存于 NAS 数据目录（`/var/apps/magpie/shares/magpie/data/web_key`）；应用中心点图标直达（浏览器地址栏可见 `?k=` 密钥），容器日志也会显著打印。升级 / 重装不改变已保存的密钥；
 4. **云隧道（Cloud tunnel）**：镜像内置 cloudflared，Web UI「Settings → Network and sharing → Cloud tunnel」一键开启：快速隧道（临时 `*.trycloudflare.com` 公网 URL）或固定隧道（自有域名 + CF Token），可暴露网关（3425）或 Web UI（3430）；
 5. **镜像源**：默认 `ghcr.nju.edu.cn/mybladethirsts/magpie-fn`（国内拉取快），可改回 `ghcr.io`；
 6. **修复反复重启 / 覆盖安装**：compose 不依赖安装回调占位符，容器启动自带密钥兜底逻辑；升级回调清理旧版残留，覆盖安装必须使用更高版本号；
@@ -49,12 +49,12 @@ The official desktop app must be installed and configured per computer. A NAS, h
 
 | 文件 / File | 架构 / Arch | 说明 / Notes |
 |---|---|---|
-| magpie-0.1.1121-10-x86.fpk.b64 | x86_64 | 安装包 base64 文本，解码后为 .fpk |
-| magpie-0.1.1121-10-arm.fpk.b64 | ARM64 | 同上（按飞牛规范打包，未在真机验证，ARM 用户请先在测试环境安装） |
+| magpie-0.1.1121-11-x86.fpk.b64 | x86_64 | 安装包 base64 文本，解码后为 .fpk |
+| magpie-0.1.1121-11-arm.fpk.b64 | ARM64 | 同上（按飞牛规范打包，未在真机验证，ARM 用户请先在测试环境安装） |
 
 ## 安装 / Install
 
-1. 还原 .fpk：`certutil -decode magpie-0.1.1121-10-x86.fpk.b64 magpie-0.1.1121-10-x86.fpk`（Windows）或 `base64 -d <file>.b64 > <file>.fpk`（Linux/macOS）；
+1. 还原 .fpk：`certutil -decode magpie-0.1.1121-11-x86.fpk.b64 magpie-0.1.1121-11-x86.fpk`（Windows）或 `base64 -d <file>.b64 > <file>.fpk`（Linux/macOS）；
 2. 飞牛应用中心 → 手动安装 → 选择 .fpk；
 3. 安装向导可手动设置访问密钥（≥16 位字母数字）；**留空则自动生成随机密钥**，安装完成后应用中心点 magpie 图标即可直达，密钥见浏览器地址栏 `?k=` 与容器日志。
 
