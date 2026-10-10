@@ -23,6 +23,7 @@ RUN CGO_ENABLED=0 go build -tags nogui -trimpath \
 FROM debian:12-slim AS cloudflared
 ARG TARGETARCH
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+    && mkdir -p /out \
     && case "${TARGETARCH}" in arm64) CFARCH=arm64;; *) CFARCH=amd64;; esac \
     && curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${CFARCH}" -o /out/cloudflared \
     && chmod +x /out/cloudflared \
