@@ -2,9 +2,9 @@
 
 ## 本仓库为 fork / About this fork
 
-本仓库是 [yetone/magpie](https://github.com/yetone/magpie) 的社区 fork，用于发布飞牛 fnOS 封装（fpk/ 目录）。上游 magpie 官方**不接受 Pull Request**（仅维护者可提交，见官方文档"Community"一节），因此封装相关改动以本 fork 形式维护。
+本仓库是 [yetone/magpie](https://github.com/yetone/magpie) 的社区 fork，用于发布飞牛 fnOS 封装（fpk/ 目录）。上游 magpie 官方**不接受 Pull Request**（仅维护者可提交），因此封装相关改动以本 fork 形式维护。
 
-This repository is a community fork of [yetone/magpie](https://github.com/yetone/magpie) hosting the fnOS packaging (in `fpk/`). The upstream magpie project **does not accept Pull Requests** (only maintainers can commit, see the "Community" section of the official docs), so all packaging changes are maintained in this fork.
+This repository is a community fork of [yetone/magpie](https://github.com/yetone/magpie) hosting the fnOS packaging (in `fpk/`). The upstream magpie project **does not accept Pull Requests** (only maintainers can commit), so all packaging changes are maintained in this fork.
 
 由衷感谢原作者 **yetone** 与 magpie 社区（MIT 许可）。
 Credit goes to the original author **yetone** and the magpie community (MIT License).
@@ -17,8 +17,8 @@ Credit goes to the original author **yetone** and the magpie community (MIT Lice
 将开源 AI 模型路由网关 yetone/magpie 封装为飞牛 fnOS 应用（.fpk）。
 This repo packages the open-source AI model routing gateway [yetone/magpie](https://github.com/yetone/magpie) as a fnOS application (.fpk).
 
-镜像默认使用南大 ghcr 镜像站（ghcr.nju.edu.cn/yetone/magpie），国内拉取快；网络好或自建中转时，可在飞牛 Docker 设置改回 ghcr.io 官方源。
-The image defaults to the Nanjing University ghcr mirror (ghcr.nju.edu.cn/yetone/magpie) for faster pulls in mainland China; switch back to the official `ghcr.io/yetone/magpie` in the fnOS Docker settings if your network or mirror setup allows.
+镜像默认使用南大 ghcr 镜像站（ghcr.nju.edu.cn/mybladethirsts/magpie-fn），国内拉取快；网络好可改回 ghcr.io/mybladethirsts/magpie-fn。
+The image defaults to the Nanjing University ghcr mirror (ghcr.nju.edu.cn/mybladethirsts/magpie-fn) for faster pulls in mainland China; switch back to `ghcr.io/mybladethirsts/magpie-fn` if your network allows.
 
 ## 为什么封装成飞牛版 / Why this fnOS build
 
@@ -27,27 +27,29 @@ The image defaults to the Nanjing University ghcr mirror (ghcr.nju.edu.cn/yetone
 3. **砍掉本机 Agent 配置覆盖**：官方桌面版安装时会自动改写本机 agent 配置；NAS 版只提供服务端网关，模型 / 订阅 / 路由统一在 Web UI 配置，各客户端直连；
 4. **自托管、数据不出内网**（可选公网隧道见下）。
 
-## 改动清单（vs 上游官方镜像）/ Changes vs upstream
+## 改动清单（vs 上游官方）/ Changes vs upstream
 
-1. **权限**：compose 使用 `user: "0"`（飞牛生命周期脚本非 root 无法执行 chown，容器内以 root 运行保证 /config 可写）；
-2. **局域网访问**：Web UI 3430 与网关 3425 均开放 `0.0.0.0`，供局域网 Agent 直连；Web UI 有密钥保护；
-3. **Web UI 密钥**：安装向导可设置访问密钥（≥16 字符）；留空则使用内置默认密钥，容器日志会打印；
-4. **镜像源**：默认 `ghcr.nju.edu.cn/yetone/magpie`（国内拉取快），可改回官方源；
-5. **修复反复重启 / 覆盖安装**：早期版本占位符依赖安装回调替换，回调未执行时容器报错（`MAGPIE_WEB_KEY` 长度不足）反复重启；现改为 compose 内置合法默认密钥（不依赖回调也能启动），升级回调清理旧版残留占位符；
-6. **版本规则**：`0.1.1121-N`，N 为封装版本号（递增；覆盖安装必须使用更高的版本号）。
+1. **免密钥直进（fn.15）**：magpie 主程序新增 `MAGPIE_WEB_NO_AUTH` 开关（compose 默认 `"1"`），Web UI 点图标直接进入，不再弹 Key 输入页；如需密钥认证，设置 `MAGPIE_WEB_KEY`（≥16 字符）会覆盖免密；
+2. **内置云隧道（fn.13，参考 omniroute 的 Cloudflare 隧道做法）**：镜像内集成 cloudflared + 隧道管理服务 tunnel-admin（端口 3431），支持快速隧道（trycloudflare 临时公网 URL，免账号）与命名隧道（固定域名，需 Cloudflare Token）；可暴露网关 3425 或 Web 3430；
+3. **局域网访问**：Web UI 3430 与网关 3425 均开放 `0.0.0.0`，供局域网 Agent 直连；
+4. **权限**：compose 使用 `user: "0"`（飞牛生命周期脚本需 root 执行 chown，容器内以 root 运行保证 /config 可写）；
+5. **镜像源**：默认 `ghcr.nju.edu.cn/mybladethirsts/magpie-fn`（国内拉取快），可改回官方 ghcr.io；compose 带 `pull_policy: always`，升级 / 启动自动拉取最新镜像；
+6. **版本规则**：`0.1.1150-fn.N`，对齐上游 magpie 版本号 + `-fn.N` 封装迭代号（严格递增，覆盖安装必须使用更高的版本号）。
 
 ## 文件 / Files
 
 | 文件 / File | 架构 / Arch | 说明 / Notes |
 |---|---|---|
-| magpie-0.1.1121-8-x86.fpk.b64 | x86_64 | 安装包 base64 文本，解码后为 .fpk |
-| magpie-0.1.1121-8-arm.fpk.b64 | ARM64 | 同上（按飞牛规范打包，未在真机验证，ARM 用户请先在测试环境安装） |
+| magpie-0.1.1150-fn.15-x86.fpk.b64 | x86_64 | 当前版安装包（base64 文本，解码后为 .fpk） |
+| magpie-0.1.1150-fn.15-arm.fpk.b64 | ARM64 | 当前版安装包 |
+| magpie-0.1.1150-fn.14-x86.fpk.b64 | x86_64 | 上一版（回退用） |
+| magpie-0.1.1150-fn.14-arm.fpk.b64 | ARM64 | 上一版（回退用） |
 
 ## 安装 / Install
 
-1. 还原 .fpk：`certutil -decode magpie-0.1.1121-8-x86.fpk.b64 magpie-0.1.1121-8-x86.fpk`（Windows）或 `base64 -d magpie-0.1.1121-8-x86.fpk.b64 > magpie-0.1.1121-8-x86.fpk`（Linux/macOS）；
+1. 还原 .fpk：`certutil -decode magpie-0.1.1150-fn.15-x86.fpk.b64 magpie-0.1.1150-fn.15-x86.fpk`（Windows）或 `base64 -d ... > magpie-0.1.1150-fn.15-x86.fpk`（Linux/macOS）；
 2. 飞牛应用中心 → 手动安装 → 选择 .fpk；
-3. 安装向导可设置 Web UI 访问密钥（至少 16 位，留空用默认密钥）。
+3. 安装完成后点应用图标直接进入 Web UI（免密钥，不再弹 Key）。
 
 ## 使用 / Usage
 
@@ -60,17 +62,17 @@ The image defaults to the Nanjing University ghcr mirror (ghcr.nju.edu.cn/yetone
 
 ## 访问 / Access
 
-- Web UI：应用中心点图标直达；局域网 `http://<NAS-IP>:3430/?k=<密钥>`
+- Web UI：应用中心点图标直达；局域网 `http://<NAS-IP>:3430`（免密钥）
+- 隧道管理页：`http://<NAS-IP>:3431`（快速隧道 / 命名隧道）
 - 网关：`http://<NAS-IP>:3425`
-- 默认密钥：a3f9c27e5b8d41f6a9c3e7b2d4f81a6c
 
 ## 公网隧道（可选）/ Public tunnels (optional)
 
-- Cloudflare 快速隧道：compose 内置 cloudflared sidecar 模板，取消注释填 CF token 即可；
-- Tailscale / ngrok：见包内 app/README.md。
-- 提醒：网关含订阅凭据，暴露公网前请先开启 Web UI 的 Share 并设置 gateway key 认证。
+- 快速隧道（Quick Tunnel）：免账号一键开启，生成临时 `*.trycloudflare.com` 公网 URL，进程运行期间有效；
+- 命名隧道（Named Tunnel）：填 Cloudflare Token + 自有域名，URL 持久，重启自动重连；
+- 提醒：网关含订阅凭据，暴露公网前请先开启 Web UI 的 Share 并设置 gateway key 认证；快速隧道有 200 并发上限且不支持 SSE，长期使用建议命名隧道。
 
 ## 许可 / License
 
 - 上游 magpie：MIT（Copyright (c) 2026 yetone），LICENSE 全文见包内；
-- 本封装为社区作品，与官方无关，不提供任何担保。
+- 本封装为社区作品（吴观风岳软件工作室），与官方无关，不提供任何担保。
