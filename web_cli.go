@@ -48,17 +48,26 @@ func webCmd(args []string) error {
 	host, _, _ := net.SplitHostPort(w.Addr)
 	if ip := net.ParseIP(host); ip != nil && !ip.IsLoopback() {
 		_, port, _ := net.SplitHostPort(w.Addr)
-		key := w.Link[strings.Index(w.Link, "/?k="):]
+		key := ""
+		if i := strings.Index(w.Link, "/?k="); i >= 0 {
+			key = w.Link[i:]
+		}
 		for _, l := range gui.NetworkLinks(port, key) {
 			fmt.Println(muted.Render("  on the network"), l)
 		}
 		if gateway.ContainerAddrs() {
 			fmt.Println(muted.Render("  " + containerNote))
 		}
-		fmt.Println(amber.Render("!"), "anyone with the link can change magpie and see its keys, and the network carries it unencrypted")
+		if key == "" {
+			fmt.Println(amber.Render("!"), "keyless (MAGPIE_WEB_NO_AUTH): anyone who can reach the port can change magpie and see its keys; the network carries it unencrypted")
+		} else {
+			fmt.Println(amber.Render("!"), "anyone with the link can change magpie and see its keys, and the network carries it unencrypted")
+		}
 	}
 	carries := "this run's key (MAGPIE_WEB_KEY keeps one across runs)"
-	if os.Getenv("MAGPIE_WEB_KEY") != "" {
+	if os.Getenv("MAGPIE_WEB_NO_AUTH") != "" && os.Getenv("MAGPIE_WEB_KEY") == "" {
+		carries = "no key (MAGPIE_WEB_NO_AUTH)"
+	} else if os.Getenv("MAGPIE_WEB_KEY") != "" {
 		carries = "MAGPIE_WEB_KEY"
 	}
 	fmt.Println(muted.Render("  the link carries " + carries + " · gateway " + advertisedURL() + " · Ctrl-C to stop"))

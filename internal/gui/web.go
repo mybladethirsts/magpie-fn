@@ -60,6 +60,21 @@ var webReexec atomic.Bool
 // browser's cookie still opens the page (#111).
 const webRunKey = "MAGPIE_WEB_RUNKEY"
 
+// webNoAuth serves the page to anyone who can reach it: for magpie running
+// as a home-NAS service, where the key is more friction than protection and
+// the NAS panel is already behind the network's own access control. Set
+// MAGPIE_WEB_NO_AUTH (any value but 0/false/no/off) to skip the key check;
+// MAGPIE_WEB_KEY still wins when both are set.
+var webNoAuth = webNoAuthEnabled()
+
+func webNoAuthEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("MAGPIE_WEB_NO_AUTH"))) {
+	case "", "0", "false", "no", "off":
+		return false
+	}
+	return true
+}
+
 // StartWeb serves the page on addr (host:port), as the given version of
 // magpie, which keeps itself up to date as the app does. Every request needs the
 // key the link carries, taken once into a cookie other sites' pages can't
@@ -86,7 +101,11 @@ func StartWeb(addr, version string) (*Web, error) {
 	}
 	var once sync.Once
 	quit := func() { once.Do(func() { close(w.quit) }) }
-	w.Link = "http://" + net.JoinHostPort(host, port) + "/?k=" + url.QueryEscape(key)
+	if key != "" {
+		w.Link = "http://" + net.JoinHostPort(host, port) + "/?k=" + url.QueryEscape(key)
+	} else {
+		w.Link = "http://" + net.JoinHostPort(host, port)
+	}
 	w.srv = &http.Server{
 		Handler:           webGuard("magpie_web_"+port, key, keep, Handler(webHost{quit}, startBackend())),
 		ReadHeaderTimeout: 30 * time.Second,
@@ -127,6 +146,14 @@ const webCookieAge = 400 * 24 * time.Hour
 // MAGPIE_WEB_KEY names one — for a page kept running as a service, which
 // browsers then stay signed in to across restarts. fixed says which.
 func webKey() (key string, fixed bool, err error) {
+	if webNoAuth {
+		// keyless mode: MAGPIE_WEB_KEY set anyway keeps the auth, because a
+		// fixed key is the page kept running as a service with browsers that
+		// stay signed in; webNoAuth is the home-NAS default below it.
+		if os.Getenv("MAGPIE_WEB_KEY") == "" {
+			return "", true, nil
+		}
+	}
 	if k := os.Getenv(webRunKey); k != "" {
 		os.Unsetenv(webRunKey) // the run's alone, not its children's
 		if len(k) == 32 && strings.Trim(k, "0123456789abcdef") == "" && os.Getenv("MAGPIE_WEB_KEY") == "" {
@@ -155,6 +182,12 @@ func webKey() (key string, fixed bool, err error) {
 func webGuard(cookie, key string, keep time.Duration, next http.Handler) http.Handler {
 	same := func(v string) bool { return subtle.ConstantTimeCompare([]byte(v), []byte(key)) == 1 }
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		if key == "" {
+			// keyless mode (MAGPIE_WEB_NO_AUTH): anyone who can reach the
+			// port gets in, like the app on a home NAS the panel guards.
+			next.ServeHTTP(rw, r)
+			return
+		}
 		if q := r.URL.Query(); q.Has("k") {
 			if !same(q.Get("k")) {
 				http.Error(rw, "this link's key is not this magpie web's: use the link it printed when it started", http.StatusUnauthorized)
