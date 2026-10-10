@@ -38,23 +38,23 @@ The official desktop app must be installed and configured per computer. A NAS, h
 ## 改动清单（vs 上游官方镜像）/ Changes vs upstream
 
 1. **权限**：compose 使用 `user: "0"`（容器内以 root 运行保证 /config 可写）；
-2. **局域网访问 + 默认免密钥（v0.1.1121-12 起）**：Web UI 3430 与网关 3425 均开放 `0.0.0.0`，供局域网 Agent 直连；**默认不注入 MAGPIE_WEB_KEY，Web 界面打开直接进入**（个人/家庭 NAS 场景无需密钥门槛；如需公网保护可在 compose 的 environment 手动设置 MAGPIE_WEB_KEY ≥16 位字母数字后重启）；
+2. **局域网访问 + 默认免密钥（v0.1.1150-fn.12 起）**：Web UI 3430 与网关 3425 均开放 `0.0.0.0`，供局域网 Agent 直连；**默认不注入 MAGPIE_WEB_KEY，Web 界面打开直接进入**（个人/家庭 NAS 场景无需密钥门槛；如需公网保护可在 compose 的 environment 手动设置 MAGPIE_WEB_KEY ≥16 位字母数字后重启）；
 3. ~~访问密钥随机化（v0.1.1121-10/11）~~：早期版本曾内置随机密钥机制（每台唯一、持久化、直达 URL 带 `?k=`）；v12 起改为**默认免密钥直进**，历史数据目录中的 web_key 文件不再被读取（保留供回退旧版使用）；
 4. **云隧道（Cloud tunnel）**：镜像内置 cloudflared，Web UI「Settings → Network and sharing → Cloud tunnel」一键开启：快速隧道（临时 `*.trycloudflare.com` 公网 URL）或固定隧道（自有域名 + CF Token），可暴露网关（3425）或 Web UI（3430）；
 5. **镜像源**：默认 `ghcr.nju.edu.cn/mybladethirsts/magpie-fn`（国内拉取快），可改回 `ghcr.io`；
 6. **修复反复重启 / 覆盖安装**：compose 不依赖安装回调占位符，容器直接启动；升级回调清理旧版密钥脚本残留；覆盖安装必须使用更高版本号；
-7. **版本规则**：`0.1.1121-N`，N 为封装版本号（递增；覆盖安装必须使用更高的版本号）。
+7. **版本规则**：`v0.1.NNNN-fn.M`——前段对齐主仓库（yetone/magpie）版本号，`-fn` 标识飞牛封装分支，`M` 为本分支封装迭代号（递增；覆盖安装必须使用更高的版本号）。
 
 ## 文件 / Files
 
 | 文件 / File | 架构 / Arch | 说明 / Notes |
 |---|---|---|
-| magpie-0.1.1121-12-x86.fpk.b64 | x86_64 | 安装包 base64 文本，解码后为 .fpk |
-| magpie-0.1.1121-12-arm.fpk.b64 | ARM64 | 同上（按飞牛规范打包，未在真机验证，ARM 用户请先在测试环境安装） |
+| magpie-0.1.1150-fn.12-x86.fpk.b64 | x86_64 | 安装包 base64 文本，解码后为 .fpk |
+| magpie-0.1.1150-fn.12-arm.fpk.b64 | ARM64 | 同上（按飞牛规范打包，未在真机验证，ARM 用户请先在测试环境安装） |
 
 ## 安装 / Install
 
-1. 还原 .fpk：`certutil -decode magpie-0.1.1121-12-x86.fpk.b64 magpie-0.1.1121-12-x86.fpk`（Windows）或 `base64 -d <file>.b64 > <file>.fpk`（Linux/macOS）；
+1. 还原 .fpk：`certutil -decode magpie-0.1.1150-fn.12-x86.fpk.b64 magpie-0.1.1150-fn.12-x86.fpk`（Windows）或 `base64 -d <file>.b64 > <file>.fpk`（Linux/macOS）；
 2. 飞牛应用中心 → 手动安装 → 选择 .fpk；
 3. 安装完成后应用中心点 magpie 图标，或局域网打开 `http://<NAS-IP>:3430`，**直接进入 Web 界面**（默认免密钥）。
 
