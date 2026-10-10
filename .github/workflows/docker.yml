@@ -9,7 +9,9 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE: ghcr.io/${{ github.repository_owner }}/magpie
+  # 本 fork 为 magpie-fn（飞牛 fnOS 封装发行分支），镜像名带 -fn 后缀，
+  # 与 docker-compose 中引用的 ghcr.nju.edu.cn/mybladethirsts/magpie-fn 保持一致。
+  IMAGE: ghcr.io/${{ github.repository_owner }}/magpie-fn
 
 jobs:
   build:
@@ -42,7 +44,7 @@ jobs:
             --cache-to type=gha,scope=${{ matrix.platform }},mode=max \
             -t magpie-smoke .
 
-          docker run -d --name smoke -v smoke-ci:/config -p 13425:3425 magpie-smoke
+          docker run -d --name smoke -v smoke-ci:/config -p 13425:3425 -p 13431:3431 magpie-smoke
 
           READY=0
           for _ in $(seq 1 30); do
@@ -50,6 +52,16 @@ jobs:
             sleep 1
           done
           test "$READY" = 1
+
+          # tunnel-admin (云隧道管理页) 随默认入口自动启动，监听 :3431
+          TUN_READY=0
+          for _ in $(seq 1 30); do
+            if curl -s http://127.0.0.1:13431/api/status | grep -q '"quick"'; then TUN_READY=1; break; fi
+            sleep 1
+          done
+          test "$TUN_READY" = 1
+          curl -s http://127.0.0.1:13431/api/status | grep -q '"named"'
+          docker exec smoke /bin/bash -c 'test -x /usr/local/bin/cloudflared && test -x /usr/local/bin/tunnel-admin'
 
           # a NAS panel's terminal opens bash or sh, with magpie on PATH
           docker exec smoke /bin/bash -c 'magpie healthcheck && ls /config >/dev/null'

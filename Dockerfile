@@ -7,10 +7,26 @@ RUN go mod download
 
 COPY . .
 
+# 隧道管理服务（独立 module，仅标准库，无第三方依赖）。
+# 供飞牛封装版在镜像内管理 cloudflared 快速/命名隧道，
+# 隧道方案参考 omniroute (github.com/diegosouzapw/OmniRoute) 的 Cloudflare Tunnel 做法。
+COPY tunnel/go.mod /src/tunnel/go.mod
+COPY tunnel/tunnel-admin.go /src/tunnel/tunnel-admin.go
+
 ARG VERSION=dev
 RUN CGO_ENABLED=0 go build -tags nogui -trimpath \
       -ldflags "-s -w -X main.version=${VERSION}" -o /out/magpie . \
+    && CGO_ENABLED=0 go build -trimpath -o /out/tunnel-admin ./tunnel \
     && mkdir -p /config/home /config/cache /config/data /config/state
+
+# cloudflared：Cloudflare Tunnel 客户端（快速隧道 trycloudflare.com + 命名隧道 --token）
+FROM debian:12-slim AS cloudflared
+ARG TARGETARCH
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+    && case "${TARGETARCH}" in arm64) CFARCH=arm64;; *) CFARCH=amd64;; esac \
+    && curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${CFARCH}" -o /out/cloudflared \
+    && chmod +x /out/cloudflared \
+    && mkdir -p /out/certs && cp -a /etc/ssl/certs/. /out/certs/
 
 # A shell for the container's terminal: NAS panels (Synology, 1Panel,
 # Portainer) open /bin/bash or /bin/sh, and distroless has neither, so a
@@ -30,13 +46,16 @@ FROM busybox:1.37-uclibc AS busybox
 FROM gcr.io/distroless/cc-debian12:nonroot
 
 COPY --from=build /out/magpie /magpie
+COPY --from=build /out/tunnel-admin /usr/local/bin/tunnel-admin
+COPY --from=cloudflared /out/cloudflared /usr/local/bin/cloudflared
+COPY --from=cloudflared /out/certs /etc/ssl/certs
 COPY --from=busybox /bin/busybox /bin/busybox
 COPY --from=shell /out/bin/bash /bin/bash
 COPY --from=shell /out/lib/ /usr/lib/
-# busybox's commands, and magpie on PATH, so `magpie accounts add …` works
-# in that terminal
+# busybox's commands, magpie and cloudflared on PATH, plus the entry wrapper
+# that starts tunnel-admin alongside magpie (tunnel-admin listens on :3431)
 USER root
-RUN ["/bin/busybox", "sh", "-c", "/bin/busybox --install -s /bin && mkdir -p /usr/local/bin && ln -s /magpie /usr/local/bin/magpie"]
+RUN ["/bin/busybox", "sh", "-c", "/bin/busybox --install -s /bin && mkdir -p /usr/local/bin && ln -s /magpie /usr/local/bin/magpie && printf '#!/bin/bash\\n/usr/local/bin/tunnel-admin &\\nexec /magpie \"$@\"\\n' > /usr/local/bin/magpie-entry.sh && chmod +x /usr/local/bin/magpie-entry.sh"]
 USER nonroot
 COPY --from=build --chown=65532:65532 /config /config
 
@@ -57,7 +76,8 @@ VOLUME /config
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD ["/magpie", "healthcheck"]
 
-EXPOSE 3425 3430
+EXPOSE 3425 3430 3431
 
-ENTRYPOINT ["/magpie"]
+# 默认入口同时启动隧道管理服务（:3431）与 magpie（默认 serve）
+ENTRYPOINT ["/bin/bash", "/usr/local/bin/magpie-entry.sh"]
 CMD ["serve"]
