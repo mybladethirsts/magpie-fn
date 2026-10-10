@@ -146,6 +146,9 @@ jobs:
             REF_TAG="$V"
             if [[ "$V" != *-* ]]; then
               TAGS+=(-t "$IMAGE:${V%.*}" -t "$IMAGE:${V%%.*}" -t "$IMAGE:latest")
+            else
+              # fn 封装版本：同时更新 latest，便于 docker-compose 直接引用
+              TAGS+=(-t "$IMAGE:latest")
             fi
           else
             TAGS=(-t "$IMAGE:edge")

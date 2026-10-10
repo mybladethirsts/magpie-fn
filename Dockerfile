@@ -16,7 +16,7 @@ COPY tunnel/tunnel-admin.go /src/tunnel/tunnel-admin.go
 ARG VERSION=dev
 RUN CGO_ENABLED=0 go build -tags nogui -trimpath \
       -ldflags "-s -w -X main.version=${VERSION}" -o /out/magpie . \
-    && CGO_ENABLED=0 go build -trimpath -o /out/tunnel-admin ./tunnel \
+    && cd /src/tunnel && CGO_ENABLED=0 go build -trimpath -o /out/tunnel-admin . \
     && mkdir -p /config/home /config/cache /config/data /config/state
 
 # cloudflared：Cloudflare Tunnel 客户端（快速隧道 trycloudflare.com + 命名隧道 --token）
