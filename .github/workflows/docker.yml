@@ -151,8 +151,9 @@ jobs:
               TAGS+=(-t "$IMAGE:latest")
             fi
           else
-            TAGS=(-t "$IMAGE:edge")
-            REF_TAG=edge
+            # 发行分支 main：edge 与 latest 同时更新，供 docker-compose 直接引用（fpk 用 :latest）
+            TAGS=(-t "$IMAGE:edge" -t "$IMAGE:latest")
+            REF_TAG=latest
           fi
           DIGEST_ARGS=()
           for d in *; do DIGEST_ARGS+=("$IMAGE@sha256:$d"); done
