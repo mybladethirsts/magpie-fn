@@ -6,7 +6,7 @@
 
 This repository is a community fork of [yetone/magpie](https://github.com/yetone/magpie) hosting the fnOS packaging (in `fpk/`). The upstream magpie project **does not accept Pull Requests** (only maintainers can commit, see the "Community" section of the official docs), so all packaging changes are maintained in this fork.
 
-由衷感谢原作者 **yetone** 与 magpie 社区（MIT 许可）。Credit goes to the original author **yetone** and the magpie community (MIT License).
+由衷感谢原作者 **yetone** 与 magpie 社区（MIT 许可）；隧道方案参考 [omniroute](https://github.com/diegosouzapw/OmniRoute)（MIT）。Credit goes to the original author **yetone** and the magpie community (MIT License); the tunnel design references omniroute (MIT).
 
 ## 定位 / Positioning
 
@@ -32,7 +32,7 @@ The official desktop app must be installed and configured per computer. A NAS, h
    **LAN agent support**: Claude Code / Codex / Gemini CLI / OpenCode etc. connect straight to the NAS gateway (3425).
 3. **砍掉本机 Agent 配置覆盖**：官方桌面版安装时会自动改写本机 agent 配置；NAS 版只提供服务端网关，模型 / 订阅 / 路由统一在 Web UI 配置，各客户端直连；
    **No local agent config rewriting**: the NAS edition only serves the gateway; models / subscriptions / routing are all managed in the Web UI.
-4. **自托管、数据不出内网**：订阅凭据与路由数据留在自己的 NAS 上；需要外网访问时，可用内置 Cloud tunnel（可选）暴露一个临时或固定的公网入口。
+4. **自托管、数据不出内网**：订阅凭据与路由数据留在自己的 NAS 上；需要外网访问时，可用内置云隧道（可选）暴露一个临时或固定的公网入口。
    **Self-hosted, data stays on your LAN**; when outside access is needed, the built-in Cloud tunnel (optional) exposes a temporary or named public URL.
 
 ## 改动清单（vs 上游官方镜像）/ Changes vs upstream
@@ -40,21 +40,27 @@ The official desktop app must be installed and configured per computer. A NAS, h
 1. **权限**：compose 使用 `user: "0"`（容器内以 root 运行保证 /config 可写）；
 2. **局域网访问 + 默认免密钥（v0.1.1150-fn.12 起）**：Web UI 3430 与网关 3425 均开放 `0.0.0.0`，供局域网 Agent 直连；**默认不注入 MAGPIE_WEB_KEY，Web 界面打开直接进入**（个人/家庭 NAS 场景无需密钥门槛；如需公网保护可在 compose 的 environment 手动设置 MAGPIE_WEB_KEY ≥16 位字母数字后重启）；
 3. ~~访问密钥随机化（v0.1.1121-10/11）~~：早期版本曾内置随机密钥机制（每台唯一、持久化、直达 URL 带 `?k=`）；v12 起改为**默认免密钥直进**，历史数据目录中的 web_key 文件不再被读取（保留供回退旧版使用）；
-4. **云隧道（Cloud tunnel）**：镜像内置 cloudflared，Web UI「Settings → Network and sharing → Cloud tunnel」一键开启：快速隧道（临时 `*.trycloudflare.com` 公网 URL）或固定隧道（自有域名 + CF Token），可暴露网关（3425）或 Web UI（3430）；
-5. **镜像源**：默认 `ghcr.nju.edu.cn/mybladethirsts/magpie-fn`（国内拉取快），可改回 `ghcr.io`；
-6. **修复反复重启 / 覆盖安装**：compose 不依赖安装回调占位符，容器直接启动；升级回调清理旧版密钥脚本残留；覆盖安装必须使用更高版本号；
-7. **版本规则**：`v0.1.NNNN-fn.M`——前段对齐主仓库（yetone/magpie）版本号，`-fn` 标识飞牛封装分支，`M` 为本分支封装迭代号（递增；覆盖安装必须使用更高的版本号）。
+4. **云隧道（Cloud tunnel，v0.1.1150-fn.13 起真正落地）**：镜像内置 **cloudflared** 与**隧道管理服务 tunnel-admin（端口 3431）**，随容器自动启动。隧道管理页 `http://<NAS-IP>:3431`：
+   - **快速隧道**：免账号一键开启，生成临时 `*.trycloudflare.com` 公网 URL（进程运行期间有效）；
+   - **命名隧道**：填 Cloudflare Token + 自有域名，URL 持久；
+   - 可暴露网关（3425）或 Web UI（3430）；
+   - 隧道方案参考 **omniroute**（Cloudflare Tunnel 标准做法：`cloudflared tunnel --url` / `cloudflared tunnel run --token`），仅借鉴方案，不引入其主体；
+   - 说明：fn.12 及更早版本文档所述的"Web UI Settings 内嵌 Cloud tunnel"并未实现（上游原版 Web UI 无此设置项），fn.13 为真实实现，隧道管理以独立页面（3431）承载。
+5. **修复镜像名不一致（fn.13）**：Actions 构建推送的镜像名统一为 `ghcr.io/mybladethirsts/magpie-fn`，与 compose 引用（南大镜像站 `ghcr.nju.edu.cn/mybladethirsts/magpie-fn`）一致；
+6. **镜像源**：默认 `ghcr.nju.edu.cn/mybladethirsts/magpie-fn`（国内拉取快），可改回 `ghcr.io`；
+7. **修复反复重启 / 覆盖安装**：compose 不依赖安装回调占位符，容器直接启动；升级回调清理旧版密钥脚本残留；覆盖安装必须使用更高版本号；
+8. **版本规则**：`v0.1.NNNN-fn.M`——前段对齐主仓库（yetone/magpie）版本号，`-fn` 标识飞牛封装分支，`M` 为本分支封装迭代号（递增；覆盖安装必须使用更高的版本号）。
 
 ## 文件 / Files
 
 | 文件 / File | 架构 / Arch | 说明 / Notes |
 |---|---|---|
-| magpie-0.1.1150-fn.12-x86.fpk.b64 | x86_64 | 安装包 base64 文本，解码后为 .fpk |
-| magpie-0.1.1150-fn.12-arm.fpk.b64 | ARM64 | 同上（按飞牛规范打包，未在真机验证，ARM 用户请先在测试环境安装） |
+| magpie-0.1.1150-fn.13-x86.fpk.b64 | x86_64 | 安装包 base64 文本，解码后为 .fpk |
+| magpie-0.1.1150-fn.13-arm.fpk.b64 | ARM64 | 同上（按飞牛规范打包，未在真机验证，ARM 用户请先在测试环境安装） |
 
 ## 安装 / Install
 
-1. 还原 .fpk：`certutil -decode magpie-0.1.1150-fn.12-x86.fpk.b64 magpie-0.1.1150-fn.12-x86.fpk`（Windows）或 `base64 -d <file>.b64 > <file>.fpk`（Linux/macOS）；
+1. 还原 .fpk：`certutil -decode magpie-0.1.1150-fn.13-x86.fpk.b64 magpie-0.1.1150-fn.13-x86.fpk`（Windows）或 `base64 -d <file>.b64 > <file>.fpk`（Linux/macOS）；
 2. 飞牛应用中心 → 手动安装 → 选择 .fpk；
 3. 安装完成后应用中心点 magpie 图标，或局域网打开 `http://<NAS-IP>:3430`，**直接进入 Web 界面**（默认免密钥）。
 
@@ -70,18 +76,21 @@ The official desktop app must be installed and configured per computer. A NAS, h
 ## 访问 / Access
 
 - Web UI：应用中心点图标直达，或局域网 `http://<NAS-IP>:3430` —— **打开直接进入，无需密钥**（默认不设置 MAGPIE_WEB_KEY）
+- 隧道管理页：`http://<NAS-IP>:3431`（快速隧道 / 命名隧道，fn.13 起）
 - 网关：`http://<NAS-IP>:3425`（gateway 模式官方默认接受任意 key，仅建议可信局域网使用）
 - 可选保护：如需给 Web 界面加访问密钥，编辑应用的 compose，在 environment 中加入 `MAGPIE_WEB_KEY: "你的密钥"`（至少 16 位字母数字）并重启应用
 
 ## 公网隧道（可选）/ Public tunnels (optional)
 
-- **Cloud tunnel（已内置）**：Web UI「Settings → Network and sharing → Cloud tunnel」
-  - Quick tunnel（快速）：一键开启，生成临时 `*.trycloudflare.com` 公网 URL，进程运行期间有效，重启后 URL 变化；
-  - Named tunnel（固定）：填 Cloudflare 账号 Token + 自有域名，URL 持久；
-  - 可暴露网关（3425）或 Web UI（3430）。
+- **隧道管理页（fn.13 起真正内置）**：`http://<NAS-IP>:3431`
+  - 快速隧道：免账号，一键开启生成临时 `*.trycloudflare.com` 公网 URL，进程运行期间有效，重启后 URL 变化；
+  - 命名隧道：填 Cloudflare Token + 自有域名，URL 持久；域名映射在 Cloudflare 控制台 Zero Trust → Tunnels 配置；
+  - 可暴露网关（3425）或 Web UI（3430）；
+  - 实现参考 omniroute 的 Cloudflare Tunnel 方案（仅方案借鉴）。
 - 提醒：Web 界面默认免密钥，网关含订阅凭据——**暴露公网前**请先在 compose 设置 MAGPIE_WEB_KEY 并开启 Web UI 的 Share 设置 gateway key 认证。
 
 ## 许可 / License
 
 - 上游 magpie：MIT（Copyright (c) 2026 yetone），LICENSE 全文见包内；
+- 参考项目 omniroute：MIT；
 - 本封装为社区作品，与官方无关，不提供任何担保。
